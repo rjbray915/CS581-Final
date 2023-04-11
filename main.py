@@ -1,6 +1,7 @@
 import pygame
 import os
 from typing import List
+import random
 
 from circle import Circle
 from wall import Wall
@@ -14,9 +15,15 @@ running = True
 
 # test circle
 circles: List[Circle] = []
-circles.append(Circle((100, 100), (200, 200), (0, 20)))
-circles.append(Circle((1000, 100), (-200, 200), (-20, 20), 40, "green"))
-circles.append(Circle((500, 500), (50, 50), (10, 10), 40, "yellow"))
+for i in range(100):
+    circles.append(Circle((random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)),
+                          (random.randint(-100, 100), random.randint(-100, 100)),
+                          (random.randint(-100, 100), random.randint(-100, 100)),
+                          10, 
+                          random.choice(["green", "blue", "yellow", "red"])))
+# circles.append(Circle((100, 100), (200, 200), (0, 20)))
+# circles.append(Circle((1000, 100), (-200, 200), (-20, 20), 40, "green"))
+# circles.append(Circle((500, 500), (50, 50), (10, 10), 40, "yellow"))
 
 # walls
 WALL_WIDTH = 5

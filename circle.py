@@ -58,5 +58,5 @@ class Circle(Sprite):
         ref._acc = ref._acc.reflect(norm_acc)
         
     def render(self, surface):
-        draw.circle(surface, self._color, self._pos, 40)
+        draw.circle(surface, self._color, self._pos, self._radius)
         draw.rect(surface, "red", self.rect, 1)
