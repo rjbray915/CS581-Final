@@ -2,6 +2,7 @@ import pygame
 import os
 from typing import List
 import random
+import itertools
 
 from circle import Circle
 from wall import Wall
@@ -17,10 +18,10 @@ running = True
 circles: List[Circle] = []
 for i in range(100):
     circles.append(Circle((random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)),
-                          (random.randint(-100, 100), random.randint(-100, 100)),
-                          (random.randint(-100, 100), random.randint(-100, 100)),
-                          10, 
-                          random.choice(["green", "blue", "yellow", "red"])))
+                          (random.randint(-20, 20), random.randint(-20, 20)),
+                          (random.randint(-20, 20), random.randint(-20, 20)),
+                          5, 
+                          random.choice(["green", "blue", "yellow", "red", "grey"])))
 # circles.append(Circle((100, 100), (200, 200), (0, 20)))
 # circles.append(Circle((1000, 100), (-200, 200), (-20, 20), 40, "green"))
 # circles.append(Circle((500, 500), (50, 50), (10, 10), 40, "yellow"))
@@ -36,6 +37,9 @@ walls.append(Wall((SCREEN_WIDTH / 2, (SCREEN_HEIGHT-WALL_WIDTH / 2)), (0,0), (0,
 # init at 0.1 to avoid divide by 0
 dt: float = 0.1
 
+# get combinations
+circle_combos = list(itertools.combinations(range(len(circles)), 2))
+
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -50,16 +54,19 @@ while running:
         for wall in walls:      
             #check if colliding
             if pygame.sprite.collide_rect(circles[i], wall):
-                print("COLLIDE")
                 circles[i].reflect_wall(wall, dt)
             wall.render(screen)
             
-        for j in range(len(circles)):
-            if j != i:
-                if pygame.sprite.collide_rect(circles[i], circles[j]):
-                    circles[i].reflect_obj(circles[j], dt)
-        
-        circles[i].render(screen)
+    for combo in circle_combos:
+        if pygame.sprite.collide_rect(circles[combo[0]], circles[combo[1]]):
+            circles[combo[0]].reflect_obj(circles[combo[1]], dt) 
+        # for j in range(len(circles)):
+        #     if j != i:
+        #         if pygame.sprite.collide_rect(circles[i], circles[j]):
+        #             circles[i].reflect_obj(circles[j], dt)
+    
+    for circle in circles:
+        circle.render(screen)
     pygame.display.flip()
 
     dt = clock.tick(60) / 1000
