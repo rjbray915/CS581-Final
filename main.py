@@ -3,9 +3,15 @@ import os
 from typing import List
 import random
 import itertools
+import argparse
 
 from circle import Circle
 from wall import Wall
+
+parser = argparse.ArgumentParser()
+parser.add_argument("num_spawn", help="num circles to spawn on map", type=int)
+args = parser.parse_args()
+num_spawn = args.num_spawn
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -14,17 +20,38 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 clock = pygame.time.Clock()
 running = True
 
-# test circle
+# circle spawning
+# calculate number that we can spawn with the radius + spacing
+radius = 5
+spacing = 20
+num_width = int(SCREEN_WIDTH / (radius * 2 + spacing))
+num_height = int(SCREEN_HEIGHT / (radius * 2 + spacing))
+if(num_spawn > num_width * num_height):
+    print("too many circles, not enough room!")
+    exit()
+
+# spawn circles
 circles: List[Circle] = []
-for i in range(100):
-    circles.append(Circle((random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)),
-                          (random.randint(-20, 20), random.randint(-20, 20)),
-                          (random.randint(-20, 20), random.randint(-20, 20)),
-                          5, 
-                          random.choice(["green", "blue", "yellow", "red", "grey"])))
-# circles.append(Circle((100, 100), (200, 200), (0, 20)))
-# circles.append(Circle((1000, 100), (-200, 200), (-20, 20), 40, "green"))
-# circles.append(Circle((500, 500), (50, 50), (10, 10), 40, "yellow"))
+curr_x = spacing
+curr_y = spacing
+for i in range(num_height):
+    curr_y += radius
+
+    for j in range(num_width):
+        if i * num_width + j >= num_spawn:
+            break
+
+        curr_x += radius
+        circles.append(Circle((curr_x, curr_y),
+                            (random.randint(-20, 20), random.randint(-20, 20)),
+                            (random.randint(-20, 20), random.randint(-20, 20)),
+                            radius, 
+                            random.choice(["green", "blue", "yellow", "red", "grey"])))
+        curr_x += radius + spacing
+
+    # reset pos
+    curr_x = spacing
+    curr_y += radius + spacing
 
 # walls
 WALL_WIDTH = 5
