@@ -10,8 +10,12 @@ from wall import Wall
 
 parser = argparse.ArgumentParser()
 parser.add_argument("num_spawn", help="num circles to spawn on map", type=int)
+parser.add_argument("radius", help="radius of circles", type=int)
+parser.add_argument("spacing", help="spacing of circles", type=int)
 args = parser.parse_args()
-num_spawn = args.num_spawn
+num_spawn = int(args.num_spawn)
+radius = int(args.radius)
+spacing = int(args.spacing)
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -22,8 +26,8 @@ running = True
 
 # circle spawning
 # calculate number that we can spawn with the radius + spacing
-radius = 5
-spacing = 20
+# radius = 5
+# spacing = 20
 num_width = int(SCREEN_WIDTH / (radius * 2 + spacing))
 num_height = int(SCREEN_HEIGHT / (radius * 2 + spacing))
 if(num_spawn > num_width * num_height):
@@ -43,8 +47,8 @@ for i in range(num_height):
 
         curr_x += radius
         circles.append(Circle((curr_x, curr_y),
-                            (random.randint(-20, 20), random.randint(-20, 20)),
-                            (random.randint(-20, 20), random.randint(-20, 20)),
+                            (random.randint(-100,100), random.randint(-100, 100)),
+                            (0,0),# (random.randint(-20, 20), random.randint(-20, 20)),
                             radius, 
                             random.choice(["green", "blue", "yellow", "red", "grey"])))
         curr_x += radius + spacing
@@ -96,6 +100,6 @@ while running:
         circle.render(screen)
     pygame.display.flip()
 
-    dt = clock.tick(60) / 1000
+    dt = clock.tick(75) / 1000
     
 pygame.quit()
