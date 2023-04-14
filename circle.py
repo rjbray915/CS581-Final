@@ -29,7 +29,7 @@ class Circle(Sprite):
         
     def on_tick(self, dt):
         self._prev_pos = self._pos
-        self._pos += self._vel * dt
+        self._pos += self._vel * dt + 0.5 * self._acc * dt*dt
         self._vel += self._acc * dt
         
         # move bounding box
@@ -38,9 +38,9 @@ class Circle(Sprite):
         
     def reflect_wall(self, ref, dt):
         # walls using their norm vect
-        self._pos = self._prev_pos
+        self._pos = ref._
         self._vel = self._vel.reflect(ref._norm_vect)
-        self._acc = self._acc.reflect(ref._norm_vect)
+        #self._acc = self._acc.reflect(ref._norm_vect)
         
     def elastic_collide(x1, x2, v1, v2, m1, m2):
         mass_term = 2 * m2 / (m1 + m2)
@@ -49,15 +49,19 @@ class Circle(Sprite):
         return v1 - mass_term * dot_term
         
     def reflect_obj(self, ref, dt):
+        # work in progress for "nudging" -- need to change circle collision first
+        self._pos = self._prev_pos
+        ref._pos = ref._prev_pos
+
         my_vel = self._vel.copy()
         ref_vel = ref._vel.copy()
         my_acc = self._acc.copy()
         ref_acc = ref._acc.copy()
         
         self._vel = Circle.elastic_collide(self._pos, ref._pos, my_vel, ref_vel, self._mass, ref._mass)
-        self._acc = Circle.elastic_collide(self._pos, ref._pos, my_acc, ref_acc, self._mass, ref._mass)
+        #self._acc = Circle.elastic_collide(self._pos, ref._pos, my_acc, ref_acc, self._mass, ref._mass)
         ref._vel = Circle.elastic_collide(ref._pos, self._pos, ref_vel, my_vel, ref._mass, self._mass)
-        ref._acc = Circle.elastic_collide(ref._pos, self._pos, ref_acc, my_acc, ref._mass, self._mass)
+        #ref._acc = Circle.elastic_collide(ref._pos, self._pos, ref_acc, my_acc, ref._mass, self._mass)
         
         # self._pos -= self._vel * dt
         # ref._pos -= ref._vel * dt
