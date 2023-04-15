@@ -91,12 +91,11 @@ while running:
         #     wall.render(screen)
             
     for combo in circle_combos:
-        if pygame.sprite.collide_rect(circles[combo[0]], circles[combo[1]]):
+        # check if bounding box is colliding
+        # if pygame.sprite.collide_rect(circles[combo[0]], circles[combo[1]]):
+            # precise calculation for circles
+        if circles[combo[0]].is_colliding_circle(circles[combo[1]]):
             circles[combo[0]].reflect_obj(circles[combo[1]], dt)
-        # for j in range(len(circles)):
-        #     if j != i:
-        #         if pygame.sprite.collide_rect(circles[i], circles[j]):
-        #             circles[i].reflect_obj(circles[j], dt)
     
     for circle in circles:
         if circle._pos.x - circle._radius < 0:
