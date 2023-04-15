@@ -120,4 +120,4 @@ class Circle(Sprite):
         
     def render(self, surface):
         draw.circle(surface, self._color, self._pos, self._radius)
-        draw.rect(surface, "red", self.rect, 1)
+        # draw.rect(surface, "red", self.rect, 1)
