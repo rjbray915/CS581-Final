@@ -1,4 +1,5 @@
 from typing import List
+import sys
 from pygame.math import Vector2
 from pygame.rect import Rect
 
@@ -10,6 +11,9 @@ class AABB(object):
     def __init__(self, lower: Vector2, upper: Vector2):
         self._lower_bound = lower
         self._upper_bound = upper
+        width = self._upper_bound.x - self._lower_bound.x
+        height = self._upper_bound.y - self._lower_bound.y
+        self._cost = 2 * width + 2 * height
         
     def union(a1: 'AABB', a2: 'AABB') -> 'AABB':
         padding: int = 5
@@ -25,7 +29,6 @@ class AABB(object):
         rect: Rect = Rect(self._lower_bound.x, self._lower_bound.y,
                           self._upper_bound.x - self._lower_bound.x,
                           self._upper_bound.y - self._lower_bound.y)
-        print(rect)
         pygame.draw.rect(surface, color, rect, 1)
         
 class AABBNode(object):
@@ -33,6 +36,7 @@ class AABBNode(object):
     _bounding_box: AABB
     _left_child: 'AABBNode'
     _right_child: 'AABBNode'
+    _parent: 'AABBNode'
     
     def __init__(self, is_leaf: bool, rect: Rect = None, aabb: AABB = None):
         self._is_leaf = is_leaf
@@ -42,12 +46,27 @@ class AABBNode(object):
             self._bounding_box = aabb
         self._left_child = None
         self._right_child = None
+        self._parent = None
         
-    def render(self, surface):
+    def cost(self):
+        '''recursive helper for cost function'''
+        return self.cost_recursive(self)
+        
+    def cost_recursive(self, curr_node: 'AABBNode'):
+        '''recursive cost function based on bounding box costs (need to modify to take out leaves)'''
+        left_cost = 0
+        right_cost = 0
+        if curr_node._left_child and not curr_node._left_child._is_leaf:
+            left_cost = self.cost_recursive(curr_node._left_child)
+        if curr_node._right_child and not curr_node._right_child._is_leaf:
+            right_cost = self.cost_recursive(curr_node._rogjt_child)
+        return curr_node._bounding_box._cost + left_cost + right_cost
+        
+    def render(self, surface, color):
         if self._is_leaf:
-            self._bounding_box.render(surface, "green")
+            self._bounding_box.render(surface, pygame.Color(0, 255, 0))
         else:
-            self._bounding_box.render(surface, "brown")
+            self._bounding_box.render(surface, color)
     
 class AABBTree(object):
     _nodes: List[AABBNode]
@@ -64,12 +83,59 @@ class AABBTree(object):
             return
     
         # otherwise, make a new internal node and put this on right
-        internal_node_bb = AABB.union(new_node._bounding_box, self._nodes[-1]._bounding_box)
+        best_node: AABBNode = self.find_best_node(self._root, new_node)
+        internal_node_bb = AABB.union(new_node._bounding_box, best_node._bounding_box)
         internal_node = AABBNode(is_leaf=False, aabb=internal_node_bb)
-        internal_node._left_child = self._nodes[-1]
+        old_node = best_node._parent
+        
+        # this is not the root node
+        if best_node._parent != None:
+            if old_node._left_child == best_node:
+                old_node._left_child = internal_node
+            else:
+                old_node._right_child = internal_node
+        else:
+            self._root = internal_node
+            self._root.parent = None
+        
+        # set children correctly and append
+        internal_node._left_child = best_node
         internal_node._right_child = new_node
+        best_node.parent = internal_node
+        new_node.parent = internal_node
         self._nodes.append(internal_node)
         self._nodes.append(new_node)
+        
+        # walk back up the tree to refit all the AABBs
+        # curr_node = best_node._parent
+        # while(curr_node != None):
+        #     curr_node._bounding_box = AABB.union(curr_node._left_child._bounding_box, curr_node._right_child._bounding_box)
+        #     curr_node = curr_node._parent
+        
+    def find_best_node(self, curr_node: AABBNode, new_node: AABBNode) -> AABBNode:
+        # if this is a leaf, return
+        if not curr_node._left_child and not curr_node._right_child:
+            return curr_node
+        
+        # go down the rabbit hole
+        left_cost = sys.maxsize
+        right_cost = sys.maxsize
+        if curr_node._left_child:
+            left_cost = AABB.union(curr_node._left_child._bounding_box, new_node._bounding_box)._cost
+        if curr_node._right_child:
+            right_cost = AABB.union(curr_node._right_child._bounding_box, new_node._bounding_box)._cost
+        
+        if left_cost < right_cost and left_cost:
+            return self.find_best_node(curr_node._left_child, new_node)
+        else:
+            return self.find_best_node(curr_node._right_child, new_node)
+            
+        # left_cost = sys.maxsize if not curr_node._left_child else curr_node._left_child.cost()
+        # right_cost = sys.maxsize if not curr_node._right_child else curr_node._right_child.cost()
+        # if left_cost < right_cost:
+        #     return self.find_best_node(curr_node._left_child, new_node)
+        # else:
+        #     return self.find_best_node(curr_node._right_child, new_node)
         
 if __name__ == "__main__":
     import pygame
@@ -121,7 +187,7 @@ if __name__ == "__main__":
                 break
 
             curr_x += radius
-            curr_circle = Circle((random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)),
+            curr_circle = Circle((random.randint(SCREEN_WIDTH/4, 3*SCREEN_WIDTH/4), random.randint(SCREEN_HEIGHT/4, 3*SCREEN_HEIGHT/4)),
                                 (random.randint(-100, 100), random.randint(-100, 100)),
                                 (0, 0),# (random.randint(-20, 20), random.randint(-20, 20)),
                                 radius, 
@@ -147,11 +213,13 @@ if __name__ == "__main__":
         
         for circle in circles:
             circle.render(screen)
-            
+        
+        color = pygame.Color(255, 0, 0)
         for node in aabb_tree._nodes:
-            print(node)
-            print(node._bounding_box._lower_bound, node._bounding_box._upper_bound)
-            node.render(screen)
+            # print(node)
+            # print(node._bounding_box._lower_bound, node._bounding_box._upper_bound)
+            node.render(screen, color)
+            color.g = (color.g + 30) % 255
 
         pygame.display.flip()
 
