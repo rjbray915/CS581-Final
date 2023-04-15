@@ -44,14 +44,41 @@ class Circle(Sprite):
         
     def elastic_collide(x1, x2, v1, v2, m1, m2):
         mass_term = 2 * m2 / (m1 + m2)
+        if x1 == x2:
+            x1.x += 0.0001
+            x1.y += 0.0001
         dot_term = (Vector2.dot(v1 - v2, x1 - x2) / Vector2.dot(x1 - x2, x1 - x2))
         dot_term *= (x1 - x2)
         return v1 - mass_term * dot_term
+    
+    def is_colliding_circle(self, ref):
+        dist = math.sqrt(math.pow(ref._pos.x - self._pos.x, 2) + math.pow(ref._pos.y - self._pos.y, 2))
+        return dist < (self._radius + ref._radius)
         
     def reflect_obj(self, ref, dt):
         # work in progress for "nudging" -- need to change circle collision first
-        self._pos = self._prev_pos
-        ref._pos = ref._prev_pos
+        # let's try nudging based on the angle they currently are
+        nudge_total = self._radius + ref._radius
+        dist_x = self._pos.x - ref._pos.x
+        dist_y = self._pos.y - ref._pos.y
+        if (abs(dist_x) > 0):
+            ang = math.atan(dist_y / dist_x)
+        else:
+            ang = 0
+        
+        nudge_x = abs(nudge_total * math.cos(ang))
+        nudge_y = abs(nudge_total * math.sin(ang))
+        if self._pos.x < ref._pos.x:
+            self._pos.x = ref._pos.x - nudge_x
+        else:
+            self._pos.x = ref._pos.x + nudge_x
+        if self._pos.y < ref._pos.y:
+            self._pos.y = ref._pos.y - nudge_y
+        else:
+            self._pos.y = ref._pos.y + nudge_y
+            
+        # self._pos = self._prev_pos
+        # ref._pos = ref._prev_pos
 
         my_vel = self._vel.copy()
         ref_vel = ref._vel.copy()
@@ -93,4 +120,4 @@ class Circle(Sprite):
         
     def render(self, surface):
         draw.circle(surface, self._color, self._pos, self._radius)
-        draw.rect(surface, "red", self.rect, 1)
+        # draw.rect(surface, "red", self.rect, 1)
