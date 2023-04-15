@@ -37,13 +37,17 @@ class AABBNode(object):
     _left_child: 'AABBNode'
     _right_child: 'AABBNode'
     _parent: 'AABBNode'
+    _indx: int
     
-    def __init__(self, is_leaf: bool, rect: Rect = None, aabb: AABB = None):
+    def __init__(self, is_leaf: bool, indx: int, rect: Rect = None, aabb: AABB = None):
         self._is_leaf = is_leaf
+        self._indx = indx
         if is_leaf:
             self._bounding_box = AABB(Vector2(rect.topleft), Vector2(rect.bottomright))
         elif aabb != None:
             self._bounding_box = aabb
+        else:
+            self._bounding_box = None
         self._left_child = None
         self._right_child = None
         self._parent = None
@@ -63,6 +67,9 @@ class AABBNode(object):
         return curr_node._bounding_box._cost + left_cost + right_cost
         
     def render(self, surface, color):
+        if self._bounding_box == None:
+            return
+        
         if self._is_leaf:
             self._bounding_box.render(surface, pygame.Color(0, 255, 0))
         else:
@@ -81,36 +88,37 @@ class AABBTree(object):
             self._root = new_node
             self._nodes.append(new_node)
             return
+        
+        self._nodes.append(new_node)
     
         # otherwise, make a new internal node and put this on right
         best_node: AABBNode = self.find_best_node(self._root, new_node)
-        internal_node_bb = AABB.union(new_node._bounding_box, best_node._bounding_box)
-        internal_node = AABBNode(is_leaf=False, aabb=internal_node_bb)
+        # internal_node_bb = AABB.union(new_node._bounding_box, best_node._bounding_box)
+        internal_node = AABBNode(False, len(self._nodes))
         old_node = best_node._parent
+        internal_node._parent = old_node
         
         # this is not the root node
-        if best_node._parent != None:
-            if old_node._left_child == best_node:
+        if old_node != None:
+            if old_node._left_child._indx == best_node._indx:
                 old_node._left_child = internal_node
             else:
                 old_node._right_child = internal_node
         else:
             self._root = internal_node
-            self._root.parent = None
         
         # set children correctly and append
         internal_node._left_child = best_node
         internal_node._right_child = new_node
-        best_node.parent = internal_node
-        new_node.parent = internal_node
+        best_node._parent = internal_node
+        new_node._parent = internal_node
         self._nodes.append(internal_node)
-        self._nodes.append(new_node)
         
         # walk back up the tree to refit all the AABBs
-        # curr_node = best_node._parent
-        # while(curr_node != None):
-        #     curr_node._bounding_box = AABB.union(curr_node._left_child._bounding_box, curr_node._right_child._bounding_box)
-        #     curr_node = curr_node._parent
+        curr_node = internal_node
+        while(curr_node != None):
+            curr_node._bounding_box = AABB.union(curr_node._left_child._bounding_box, curr_node._right_child._bounding_box)
+            curr_node = curr_node._parent
         
     def find_best_node(self, curr_node: AABBNode, new_node: AABBNode) -> AABBNode:
         # if this is a leaf, return
@@ -193,7 +201,7 @@ if __name__ == "__main__":
                                 radius, 
                                 random.choice(["green", "blue", "yellow", "red", "grey"]))
             circles.append(curr_circle)
-            new_node = AABBNode(is_leaf=True, rect=curr_circle.rect)
+            new_node = AABBNode(is_leaf=True, indx=len(aabb_tree._nodes), rect=curr_circle.rect)
             aabb_tree.insert_node(new_node)
             curr_x += radius + spacing
 
