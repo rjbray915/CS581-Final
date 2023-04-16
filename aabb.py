@@ -13,10 +13,10 @@ class AABB(object):
         self._upper_bound = upper
         width = self._upper_bound.x - self._lower_bound.x
         height = self._upper_bound.y - self._lower_bound.y
-        self._cost = 2 * width + 2 * height
+        self._cost = width * height #2 * width + 2 * height
         
     def union(a1: 'AABB', a2: 'AABB') -> 'AABB':
-        padding: int = 5
+        padding: int = 1
         lower = Vector2(0, 0)
         upper = Vector2(0, 0)
         lower.x = min(a1._lower_bound.x, a2._lower_bound.x) - padding
@@ -129,9 +129,11 @@ class AABBTree(object):
         left_cost = sys.maxsize
         right_cost = sys.maxsize
         if curr_node._left_child:
-            left_cost = AABB.union(curr_node._left_child._bounding_box, new_node._bounding_box)._cost
+            #left_cost = AABB.union(curr_node._left_child._bounding_box, new_node._bounding_box)._cost
+            left_cost = curr_node._left_child.cost() + AABB.union(curr_node._left_child._bounding_box, new_node._bounding_box)._cost
         if curr_node._right_child:
-            right_cost = AABB.union(curr_node._right_child._bounding_box, new_node._bounding_box)._cost
+            #right_cost = AABB.union(curr_node._right_child._bounding_box, new_node._bounding_box)._cost
+            right_cost = curr_node._right_child.cost() + AABB.union(curr_node._right_child._bounding_box, new_node._bounding_box)._cost
         
         if left_cost < right_cost and left_cost:
             return self.find_best_node(curr_node._left_child, new_node)
@@ -144,6 +146,23 @@ class AABBTree(object):
         #     return self.find_best_node(curr_node._left_child, new_node)
         # else:
         #     return self.find_best_node(curr_node._right_child, new_node)
+
+    def update_tree(self, circles):
+        #circles.sort(key=lambda c: (c._pos.x, c._pos.y))
+
+        new_tree = AABBTree()
+        for circle in circles:
+            new_node = AABBNode(is_leaf=True, indx=len(new_tree._nodes), rect=circle.rect)
+            new_tree.insert_node(new_node)
+
+        return new_tree
+
+    def render_tree(self, screen, color):
+        for node in self._nodes:
+            # print(node)
+            # print(node._bounding_box._lower_bound, node._bounding_box._upper_bound)
+            node.render(screen, color)
+            color.g = (color.g + 30) % 255
         
 if __name__ == "__main__":
     import pygame
@@ -168,9 +187,16 @@ if __name__ == "__main__":
     SCREEN_WIDTH = 1280
     SCREEN_HEIGHT = 720
     pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # flags=pygame.NOFRAME
     clock = pygame.time.Clock()
     running = True
+
+    # fps counter
+    font = pygame.font.SysFont("dejavusansmono", 18)
+    def update_fps():
+        fps = str(int(clock.get_fps())) # averages the last 10 calls to Clock.tick()
+        fps_text = font.render(fps, 1, pygame.Color("coral"))
+        return fps_text
 
     # circle spawning
     # calculate number that we can spawn with the radius + spacing
@@ -195,7 +221,7 @@ if __name__ == "__main__":
                 break
 
             curr_x += radius
-            curr_circle = Circle((random.randint(SCREEN_WIDTH/4, 3*SCREEN_WIDTH/4), random.randint(SCREEN_HEIGHT/4, 3*SCREEN_HEIGHT/4)),
+            curr_circle = Circle((curr_x, curr_y),
                                 (random.randint(-100, 100), random.randint(-100, 100)),
                                 (0, 0),# (random.randint(-20, 20), random.randint(-20, 20)),
                                 radius, 
@@ -210,6 +236,9 @@ if __name__ == "__main__":
         curr_y += radius + spacing
         
     while running:
+        # convert dt to seconds by dividing by 1000
+        dt = clock.tick() / 1000
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -218,20 +247,30 @@ if __name__ == "__main__":
                     running = False
                 
         screen.fill("#000000")
+
+        for i in range(len(circles)):
+            circles[i].on_tick(dt)
         
         for circle in circles:
+            if circle._pos.x - circle._radius < 0:
+                circle._pos.x = circle._radius
+                circle._vel.x = -circle._vel.x
+            if circle._pos.x + circle._radius > SCREEN_WIDTH-1:
+                circle._pos.x = SCREEN_WIDTH-1 - circle._radius
+                circle._vel.x = -circle._vel.x
+            if circle._pos.y - circle._radius < 0:
+                circle._pos.y = circle._radius
+                circle._vel.y = -circle._vel.y
+            if circle._pos.y + circle._radius > SCREEN_HEIGHT-1:
+                circle._pos.y = SCREEN_HEIGHT-1 - circle._radius
+                circle._vel.y = -circle._vel.y
+
             circle.render(screen)
         
-        color = pygame.Color(255, 0, 0)
-        for node in aabb_tree._nodes:
-            # print(node)
-            # print(node._bounding_box._lower_bound, node._bounding_box._upper_bound)
-            node.render(screen, color)
-            color.g = (color.g + 30) % 255
+        aabb_tree = aabb_tree.update_tree(circles)
+        aabb_tree.render_tree(screen, pygame.Color(255, 0, 0))
 
+        screen.blit(update_fps(), (5, 10))
         pygame.display.flip()
-
-        # convert dt to seconds by dividing by 1000
-        dt = clock.tick(75) / 1000
         
     pygame.quit()
