@@ -42,13 +42,13 @@ class Circle(Sprite):
         self._vel = self._vel.reflect(ref._norm_vect)
         #self._acc = self._acc.reflect(ref._norm_vect)
         
-    def elastic_collide(x1, x2, v1, v2, m1, m2):
+    def elastic_collide(p1, p2, v1, v2, m1, m2):
         mass_term = 2 * m2 / (m1 + m2)
-        if x1 == x2:
-            x1.x += 0.0001
-            x1.y += 0.0001
-        dot_term = (Vector2.dot(v1 - v2, x1 - x2) / Vector2.dot(x1 - x2, x1 - x2))
-        dot_term *= (x1 - x2)
+        if p1 == p2:
+            p1.x += 0.0001
+            p1.y += 0.0001
+        dot_term = (Vector2.dot(v1 - v2, p1 - p2) / Vector2.dot(p1 - p2, p1 - p2))
+        dot_term *= (p1 - p2)
         return v1 - mass_term * dot_term
     
     def is_colliding_circle(self, ref):

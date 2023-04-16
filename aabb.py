@@ -63,7 +63,7 @@ class AABBNode(object):
         if curr_node._left_child and not curr_node._left_child._is_leaf:
             left_cost = self.cost_recursive(curr_node._left_child)
         if curr_node._right_child and not curr_node._right_child._is_leaf:
-            right_cost = self.cost_recursive(curr_node._rogjt_child)
+            right_cost = self.cost_recursive(curr_node._right_child)
         return curr_node._bounding_box._cost + left_cost + right_cost
         
     def render(self, surface, color):

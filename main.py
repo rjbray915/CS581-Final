@@ -20,9 +20,16 @@ spacing = int(args.spacing)
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # flags=pygame.NOFRAME
 clock = pygame.time.Clock()
 running = True
+
+# fps counter
+font = pygame.font.SysFont("dejavusansmono", 18)
+def update_fps():
+	fps = str(int(clock.get_fps())) # averages the last 10 calls to Clock.tick()
+	fps_text = font.render(fps, 1, pygame.Color("coral"))
+	return fps_text
 
 # circle spawning
 # calculate number that we can spawn with the radius + spacing
@@ -58,20 +65,20 @@ for i in range(num_height):
     curr_y += radius + spacing
 
 # walls
-WALL_WIDTH = 50
-walls: List[Wall] = []
-walls.append(Wall((WALL_WIDTH/2, SCREEN_HEIGHT/2), (0, 0), (0, 0), WALL_WIDTH, SCREEN_HEIGHT, (1, 0)))                     # left
-walls.append(Wall((SCREEN_WIDTH/2, WALL_WIDTH/2), (0, 0), (0, 0), SCREEN_WIDTH, WALL_WIDTH, (0, -1)))          # top
-walls.append(Wall(((SCREEN_WIDTH - WALL_WIDTH/2), SCREEN_HEIGHT / 2), (0, 0), (0, 0), WALL_WIDTH, SCREEN_HEIGHT, (-1, 0)))  # right
-walls.append(Wall((SCREEN_WIDTH/2, (SCREEN_HEIGHT - WALL_WIDTH/2)), (0, 0), (0, 0), SCREEN_WIDTH, WALL_WIDTH, (0, 1)))       # bottom
-
-# init at 0.1 to avoid divide by 0
-dt: float = 0.1
+# WALL_WIDTH = 50
+# walls: List[Wall] = []
+# walls.append(Wall((WALL_WIDTH/2, SCREEN_HEIGHT/2), (0, 0), (0, 0), WALL_WIDTH, SCREEN_HEIGHT, (1, 0)))                      # left
+# walls.append(Wall((SCREEN_WIDTH/2, WALL_WIDTH/2), (0, 0), (0, 0), SCREEN_WIDTH, WALL_WIDTH, (0, -1)))                       # top
+# walls.append(Wall(((SCREEN_WIDTH - WALL_WIDTH/2), SCREEN_HEIGHT / 2), (0, 0), (0, 0), WALL_WIDTH, SCREEN_HEIGHT, (-1, 0)))  # right
+# walls.append(Wall((SCREEN_WIDTH/2, (SCREEN_HEIGHT - WALL_WIDTH/2)), (0, 0), (0, 0), SCREEN_WIDTH, WALL_WIDTH, (0, 1)))      # bottom
 
 # get combinations
 circle_combos = list(itertools.combinations(range(len(circles)), 2))
 
 while running:
+    # convert dt to seconds by dividing by 1000
+    dt = clock.tick() / 1000
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -101,21 +108,19 @@ while running:
         if circle._pos.x - circle._radius < 0:
             circle._pos.x = circle._radius
             circle._vel.x = -circle._vel.x
-        if circle._pos.x + circle._radius > SCREEN_WIDTH:
-            circle._pos.x = SCREEN_WIDTH - circle._radius
+        if circle._pos.x + circle._radius > SCREEN_WIDTH-1:
+            circle._pos.x = SCREEN_WIDTH-1 - circle._radius
             circle._vel.x = -circle._vel.x
         if circle._pos.y - circle._radius < 0:
             circle._pos.y = circle._radius
             circle._vel.y = -circle._vel.y
-        if circle._pos.y + circle._radius > SCREEN_HEIGHT:
-            circle._pos.y = SCREEN_HEIGHT - circle._radius
+        if circle._pos.y + circle._radius > SCREEN_HEIGHT-1:
+            circle._pos.y = SCREEN_HEIGHT-1 - circle._radius
             circle._vel.y = -circle._vel.y
 
         circle.render(screen)
 
+    screen.blit(update_fps(), (5, 10))
     pygame.display.flip()
-
-    # convert dt to seconds by dividing by 1000
-    dt = clock.tick(75) / 1000
     
 pygame.quit()
