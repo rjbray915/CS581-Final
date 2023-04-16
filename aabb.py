@@ -15,8 +15,9 @@ class AABB(object):
         height = self._upper_bound.y - self._lower_bound.y
         self._cost = width * height #2 * width + 2 * height
         
-    def union(a1: 'AABB', a2: 'AABB') -> 'AABB':
-        padding: int = 1
+    def union(a1: 'AABB',
+     a2: 'AABB') -> 'AABB':
+        padding: int = 25
         lower = Vector2(0, 0)
         upper = Vector2(0, 0)
         lower.x = min(a1._lower_bound.x, a2._lower_bound.x) - padding
@@ -74,6 +75,7 @@ class AABBNode(object):
             self._bounding_box.render(surface, pygame.Color(0, 255, 0))
         else:
             self._bounding_box.render(surface, color)
+            surface.blit(cost_font.render(str(int(self.cost())), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x + 5, self._bounding_box._lower_bound.y + 5))
     
 class AABBTree(object):
     _nodes: List[AABBNode]
@@ -197,6 +199,8 @@ if __name__ == "__main__":
         fps = str(int(clock.get_fps())) # averages the last 10 calls to Clock.tick()
         fps_text = font.render(fps, 1, pygame.Color("coral"))
         return fps_text
+
+    cost_font = pygame.font.SysFont("dejavusansmono", 12)
 
     # circle spawning
     # calculate number that we can spawn with the radius + spacing
