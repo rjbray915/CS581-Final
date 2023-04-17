@@ -56,6 +56,27 @@ class AABBNode(object):
     def cost(self):
         '''recursive helper for cost function'''
         return self.cost_recursive(self)
+    
+    def find_best_cost(self, curr_node: 'AABBNode', new_node: 'AABBNode'):
+        '''recursive cost function based on bounding box costs'''
+        # base case
+        if curr_node._is_leaf:
+            new_aabb = AABB.union(curr_node._bounding_box, new_node._bounding_box)
+            return (new_aabb, curr_node)
+
+        left_node: AABBNode = None
+        right_node: AABBNode = None
+        left_aabb: AABB = None
+        right_aabb: AABB = None
+        left_cost = sys.maxsize
+        right_cost = sys.maxsize
+        if curr_node._left_child:
+            left_aabb, left_node = self.find_best_cost(curr_node._left_child, new_node)
+            left_cost = left_aabb._cost
+        if curr_node._right_child:
+            right_aabb, right_node = self.find_best_cost(curr_node._right_child, new_node)
+            right_cost = right_aabb._cost
+        return (left_aabb, left_node) if left_cost < right_cost else (right_aabb, right_node)
         
     def cost_recursive(self, curr_node: 'AABBNode'):
         '''recursive cost function based on bounding box costs'''
@@ -123,24 +144,31 @@ class AABBTree(object):
             curr_node = curr_node._parent
         
     def find_best_node(self, curr_node: AABBNode, new_node: AABBNode) -> AABBNode:
+        print(curr_node._indx)
         # if this is a leaf, return
         if not curr_node._left_child and not curr_node._right_child:
             return curr_node
         
         # go down the rabbit hole
+        left_node: AABBNode = None
+        right_node: AABBNode = None
+        left_aabb: AABB = None
+        right_aabb: AABB = None
         left_cost = sys.maxsize
         right_cost = sys.maxsize
         if curr_node._left_child:
             #left_cost = AABB.union(curr_node._left_child._bounding_box, new_node._bounding_box)._cost
-            left_cost = curr_node._left_child.cost() + AABB.union(curr_node._left_child._bounding_box, new_node._bounding_box)._cost
+            left_aabb, left_node = curr_node._left_child.find_best_cost(curr_node._left_child, new_node)
+            left_cost = left_aabb._cost
         if curr_node._right_child:
             #right_cost = AABB.union(curr_node._right_child._bounding_box, new_node._bounding_box)._cost
-            right_cost = curr_node._right_child.cost() + AABB.union(curr_node._right_child._bounding_box, new_node._bounding_box)._cost
+            right_aabb, right_node = curr_node._right_child.find_best_cost(curr_node._right_child, new_node)
+            right_cost = right_aabb._cost
         
-        if left_cost <= right_cost:
-            return self.find_best_node(curr_node._left_child, new_node)
+        if left_cost < right_cost:
+            return left_node
         else:
-            return self.find_best_node(curr_node._right_child, new_node)
+            return right_node
             
         # left_cost = sys.maxsize if not curr_node._left_child else curr_node._left_child.cost()
         # right_cost = sys.maxsize if not curr_node._right_child else curr_node._right_child.cost()
