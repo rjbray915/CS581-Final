@@ -115,7 +115,7 @@ class AABBTree(object):
             return
     
         # otherwise, make a new internal node and put this on right
-        best_node: AABBNode = self.find_best_node_heuristic(self._root, new_node)
+        best_node: AABBNode = self.find_best_node(self._root, new_node) # self.find_best_node_heuristic(self._root, new_node)
         # internal_node_bb = AABB.union(new_node._bounding_box, best_node._bounding_box)
         internal_node = AABBNode(False, -1)
         old_node = best_node._parent
@@ -297,10 +297,11 @@ if __name__ == "__main__":
                 
         screen.fill("#000000")
 
-        for i in range(len(circles)):
-            circles[i].on_tick(dt)
+        for circle in circles:
+            circle.on_tick(dt)
 
         # determine which AABBs can collide
+        #circle_combos = []
         for i, circle in enumerate(circles):
             stack = [aabb_tree._root]
             rect1 = circle.rect
@@ -309,6 +310,7 @@ if __name__ == "__main__":
                 if top._is_leaf and top._indx != i:
                     # handle collision
                     if circle.is_colliding_circle(circles[top._indx]):
+                        #circle_combos.append((circle, circles[top._indx]))
                         circle.reflect_obj(circles[top._indx], dt)
                 else:
                     if top._left_child:
@@ -321,6 +323,10 @@ if __name__ == "__main__":
                         overlapping = not (rect1.x + rect1.w < rect2._lower_bound.x or rect1.x > rect2._upper_bound.x or rect1.y + rect1.h < rect2._lower_bound.y or rect1.y > rect2._upper_bound.y)
                         if overlapping:
                             stack.append(top._right_child)
+
+        # for combo in circle_combos:
+        #     if combo[0].is_colliding_circle(combo[1]):
+        #         combo[0].reflect_obj(combo[1], dt)
         
         for circle in circles:
             if circle._pos.x - circle._radius < 0:
