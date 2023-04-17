@@ -58,7 +58,7 @@ class AABBNode(object):
         return self.cost_recursive(self)
         
     def cost_recursive(self, curr_node: 'AABBNode'):
-        '''recursive cost function based on bounding box costs (need to modify to take out leaves)'''
+        '''recursive cost function based on bounding box costs'''
         left_cost = 0
         right_cost = 0
         if curr_node._left_child and not curr_node._left_child._is_leaf:
@@ -73,6 +73,7 @@ class AABBNode(object):
         
         if self._is_leaf:
             self._bounding_box.render(surface, pygame.Color(0, 255, 0))
+            surface.blit(cost_font.render(str(int(self._indx)), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x + 5, self._bounding_box._lower_bound.y + 5))
         else:
             self._bounding_box.render(surface, color)
             surface.blit(cost_font.render(str(int(self.cost())), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x + 5, self._bounding_box._lower_bound.y + 5))
@@ -86,12 +87,11 @@ class AABBTree(object):
         self._root = None
         
     def insert_node(self, new_node: AABBNode):
+        self._nodes.append(new_node)
+
         if self._root == None:
             self._root = new_node
-            self._nodes.append(new_node)
             return
-        
-        self._nodes.append(new_node)
     
         # otherwise, make a new internal node and put this on right
         best_node: AABBNode = self.find_best_node(self._root, new_node)
@@ -137,7 +137,7 @@ class AABBTree(object):
             #right_cost = AABB.union(curr_node._right_child._bounding_box, new_node._bounding_box)._cost
             right_cost = curr_node._right_child.cost() + AABB.union(curr_node._right_child._bounding_box, new_node._bounding_box)._cost
         
-        if left_cost < right_cost and left_cost:
+        if left_cost <= right_cost:
             return self.find_best_node(curr_node._left_child, new_node)
         else:
             return self.find_best_node(curr_node._right_child, new_node)
@@ -192,6 +192,7 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # flags=pygame.NOFRAME
     clock = pygame.time.Clock()
     running = True
+    paused = False
 
     # fps counter
     font = pygame.font.SysFont("dejavusansmono", 18)
@@ -240,15 +241,20 @@ if __name__ == "__main__":
         curr_y += radius + spacing
         
     while running:
-        # convert dt to seconds by dividing by 1000
-        dt = clock.tick() / 1000
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
                     running = False
+                if event.key == pygame.K_p:
+                    paused = not paused
+
+        if paused:
+            continue
+
+        # convert dt to seconds by dividing by 1000
+        dt = clock.tick() / 1000
                 
         screen.fill("#000000")
 
