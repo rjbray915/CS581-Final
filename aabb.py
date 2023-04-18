@@ -54,28 +54,36 @@ class AABBNode(object):
     def cost(self):
         '''recursive helper for cost function'''
         return self.cost_recursive(self)
+
+    def cost_recursive(self, curr_node: 'AABBNode'):
+        '''recursive cost function based on bounding box costs'''
+        left_cost = 0
+        right_cost = 0
+        if curr_node._left_child and not curr_node._left_child._is_leaf:
+            left_cost = self.cost_recursive(curr_node._left_child)
+        if curr_node._right_child and not curr_node._right_child._is_leaf:
+            right_cost = self.cost_recursive(curr_node._right_child)
+        return curr_node._bounding_box._cost + left_cost + right_cost
     
     def find_best_cost(self, curr_node: 'AABBNode', new_node: 'AABBNode', curr_cost: int):
         '''recursive cost function based on bounding box costs'''
         new_aabb = AABB.union(curr_node._bounding_box, new_node._bounding_box)
-        new_cost = new_aabb._cost
+        new_cost = new_aabb._cost # the cost to put the box around all 3 of them is always the same
         # base case
         if curr_node._is_leaf:
-            return (new_aabb, curr_node, new_cost)
+            return (curr_node, new_cost)
 
         left_node: AABBNode = None
         right_node: AABBNode = None
-        left_aabb: AABB = None
-        right_aabb: AABB = None
 
-        left_aabb, left_node, left_cost = self.find_best_cost(curr_node._left_child, new_node, curr_cost)
-        right_aabb, right_node, right_cost = self.find_best_cost(curr_node._right_child, new_node, curr_cost)
+        left_node, left_cost = self.find_best_cost(curr_node._left_child, new_node, curr_cost)
+        right_node, right_cost = self.find_best_cost(curr_node._right_child, new_node, curr_cost)
         curr_cost = curr_node.cost()
         
         if curr_cost < left_cost and curr_cost < right_cost:
-            return (new_aabb, curr_node, curr_cost + new_cost)
+            return (curr_node, curr_cost + new_cost)
         else:
-            return (left_aabb, left_node, left_cost + new_cost) if left_cost < right_cost else (right_aabb, right_node, right_cost + new_cost)
+            return (left_node, left_cost + new_cost) if left_cost < right_cost else (right_node, right_cost + new_cost)
 
     def find_best_cost_itr(self, curr_node: 'AABBNode', new_node: 'AABBNode'):
         '''iterative cost function based on bounding box costs'''
@@ -115,16 +123,6 @@ class AABBNode(object):
                 # left_cost = best_cost + AABB.union(top._left_child._bounding_box, new_node._bounding_box)
                 # right_cost = best_cost + AABB.union(top._right_child._bounding_box, new_node._bounding_box)
         return
-        
-    def cost_recursive(self, curr_node: 'AABBNode'):
-        '''recursive cost function based on bounding box costs'''
-        left_cost = 0
-        right_cost = 0
-        if curr_node._left_child and not curr_node._left_child._is_leaf:
-            left_cost = self.cost_recursive(curr_node._left_child)
-        if curr_node._right_child and not curr_node._right_child._is_leaf:
-            right_cost = self.cost_recursive(curr_node._right_child)
-        return curr_node._bounding_box._cost + left_cost + right_cost
         
     def render(self, surface, color):
         if self._bounding_box == None:
@@ -188,7 +186,7 @@ class AABBTree(object):
             return curr_node
         
         # go down the rabbit hole  
-        _, best_node, _ = curr_node.find_best_cost(curr_node, new_node, 0) # curr_node.find_best_cost_itr(curr_node, new_node)
+        best_node, _ = curr_node.find_best_cost(curr_node, new_node, 0) # curr_node.find_best_cost_itr(curr_node, new_node)
         return best_node
 
     def find_best_node_heuristic(self, curr_node: AABBNode, new_node: AABBNode) -> AABBNode:
@@ -399,22 +397,21 @@ if __name__ == "__main__":
             rect1 = circle.rect
             while len(stack) > 0:
                 top = stack.pop()
-                if top._is_leaf and top._indx != i:
+                if top._is_leaf:
                     # handle collision
-                    if circle.is_colliding_circle(circles[top._indx]):
+                    if top._indx != i and circle.is_colliding_circle(circles[top._indx]):
                         #circle_combos.append((circle, circles[top._indx]))
                         circle.reflect_obj(circles[top._indx], dt)
                 else:
-                    if top._left_child:
-                        rect2 = top._left_child._bounding_box
-                        overlapping = not (rect1.x + rect1.w < rect2._lower_bound.x or rect1.x > rect2._upper_bound.x or rect1.y + rect1.h < rect2._lower_bound.y or rect1.y > rect2._upper_bound.y)
-                        if overlapping:
-                            stack.append(top._left_child)
-                    if top._right_child:
-                        rect2 = top._right_child._bounding_box
-                        overlapping = not (rect1.x + rect1.w < rect2._lower_bound.x or rect1.x > rect2._upper_bound.x or rect1.y + rect1.h < rect2._lower_bound.y or rect1.y > rect2._upper_bound.y)
-                        if overlapping:
-                            stack.append(top._right_child)
+                    rect2 = top._left_child._bounding_box
+                    overlapping = not (rect1.x + rect1.w < rect2._lower_bound.x or rect1.x > rect2._upper_bound.x or rect1.y + rect1.h < rect2._lower_bound.y or rect1.y > rect2._upper_bound.y)
+                    if overlapping:
+                        stack.append(top._left_child)
+                    
+                    rect2 = top._right_child._bounding_box
+                    overlapping = not (rect1.x + rect1.w < rect2._lower_bound.x or rect1.x > rect2._upper_bound.x or rect1.y + rect1.h < rect2._lower_bound.y or rect1.y > rect2._upper_bound.y)
+                    if overlapping:
+                        stack.append(top._right_child)
 
         # for combo in circle_combos:
         #     if combo[0].is_colliding_circle(combo[1]):
@@ -437,7 +434,7 @@ if __name__ == "__main__":
             circle.render(screen)
         
         #aabb_tree = aabb_tree.update_tree(circles)
-        aabb_tree.render_tree(screen, pygame.Color(255, 0, 0)) # has little to no effect on framerate
+        #aabb_tree.render_tree(screen, pygame.Color(255, 0, 0)) # has little to no effect on framerate
 
         screen.blit(update_fps(), (5, 10))
         pygame.display.flip()
