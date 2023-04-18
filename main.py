@@ -56,7 +56,7 @@ for i in range(num_height):
         circles.append(Circle((curr_x, curr_y),
                             (random.randint(-100, 100), random.randint(-100, 100)),
                             (0, 0),# (random.randint(-20, 20), random.randint(-20, 20)),
-                            radius, 
+                            random.randint(radius, radius), # can experiment with random radius -- random.randint(1, radius)
                             random.choice(["green", "blue", "yellow", "red", "grey"])))
         curr_x += radius + spacing
 
