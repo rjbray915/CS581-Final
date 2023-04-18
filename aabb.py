@@ -6,7 +6,6 @@ from pygame.rect import Rect
 class AABB(object):
     _lower_bound: Vector2
     _upper_bound: Vector2
-    _padding: int = 1
     
     def __init__(self, lower: Vector2, upper: Vector2):
         self._lower_bound = lower
@@ -16,7 +15,7 @@ class AABB(object):
         self._cost = width * height #2 * width + 2 * height
         
     def union(a1: 'AABB', a2: 'AABB') -> 'AABB':
-        padding: int = 50 # seems to do worse with less padding
+        padding: int = 25 # seems to do worse with less padding or more padding -- 25 is just right?
         lower = Vector2(0, 0)
         upper = Vector2(0, 0)
         lower.x = min(a1._lower_bound.x, a2._lower_bound.x) - padding
@@ -77,6 +76,45 @@ class AABBNode(object):
             return (new_aabb, curr_node, curr_cost + new_cost)
         else:
             return (left_aabb, left_node, left_cost + new_cost) if left_cost < right_cost else (right_aabb, right_node, right_cost + new_cost)
+
+    def find_best_cost_itr(self, curr_node: 'AABBNode', new_node: 'AABBNode'):
+        '''iterative cost function based on bounding box costs'''
+        tmp = [curr_node]
+        stack = []
+        best_aabb = None
+        best_node = None
+        best_cost = sys.maxsize
+
+        # create recursive stack with level order traversal
+        while tmp:
+            top = tmp.pop()
+            if top:
+                stack.append(top)
+                tmp.append(node._right_child)
+                tmp.append(node._left_child)
+
+        while stack:
+            top = stack.pop()
+
+            if top._is_leaf:
+                aabb = AABB.union(top._bounding_box, new_node._bounding_box)
+                curr_cost = aabb._cost
+                if curr_cost < best_cost:
+                    best_aabb = aabb
+                    best_node = node
+                    best_cost = cost
+            else:
+                # WIP
+                curr_cost = curr_node.cost()
+
+                if curr_cost < best_cost:
+                    best_aabb = AABB.union(top._bounding_box, new_node._bounding_box)
+                    best_node = top
+                    best_cost += curr_cost
+
+                # left_cost = best_cost + AABB.union(top._left_child._bounding_box, new_node._bounding_box)
+                # right_cost = best_cost + AABB.union(top._right_child._bounding_box, new_node._bounding_box)
+        return
         
     def cost_recursive(self, curr_node: 'AABBNode'):
         '''recursive cost function based on bounding box costs'''
@@ -150,7 +188,7 @@ class AABBTree(object):
             return curr_node
         
         # go down the rabbit hole  
-        _, best_node, _ = curr_node.find_best_cost(curr_node, new_node, 0)
+        _, best_node, _ = curr_node.find_best_cost(curr_node, new_node, 0) # curr_node.find_best_cost_itr(curr_node, new_node)
         return best_node
 
     def find_best_node_heuristic(self, curr_node: AABBNode, new_node: AABBNode) -> AABBNode:
@@ -214,16 +252,15 @@ class AABBTree(object):
                     curr_node._bounding_box = AABB.union(curr_node._left_child._bounding_box, curr_node._right_child._bounding_box)
                     curr_node = curr_node._parent
 
-            # remove this overwritten internal parent node
+            # remove this overwritten internal parent node (I had to add this)
             self._nodes.remove(parent)
                 
         # Remove the node from the list of nodes.
         self._nodes.remove(node)
 
-    # DOES NOT WORK
     def update_node(self, node: AABBNode, new_aabb: AABB):
         node._bounding_box = new_aabb
-        # Walk back up the tree, updating bounding boxes.
+        # walk back up the tree to refit all the AABBs
         curr_node = node._parent
         while curr_node is not None:
             curr_node._bounding_box = AABB.union(curr_node._left_child._bounding_box, curr_node._right_child._bounding_box)
@@ -292,7 +329,7 @@ if __name__ == "__main__":
             curr_circle = Circle((curr_x, curr_y),
                                 (random.randint(-100, 100), random.randint(-100, 100)),
                                 (0, 0),# (random.randint(-20, 20), random.randint(-20, 20)),
-                                random.randint(radius, radius), 
+                                random.randint(radius, radius),  # can experiment with random radius -- random.randint(1, radius)
                                 random.choice(["green", "blue", "yellow", "red", "grey"]))
             new_node = AABBNode(is_leaf=True, indx=len(circles), rect=curr_circle.rect)
             circles.append(curr_circle)
@@ -329,19 +366,28 @@ if __name__ == "__main__":
             if node._is_leaf and node._parent:
                 circle = circles[node._indx]
                 rect1 = circle.rect
-                # redraw tree if any part of the circle has left its immediate parent's bounding box
+
+                # redraw node if any part of the circle has left its immediate parent's bounding box
                 rect2 = node._parent._bounding_box
-                overlapping = not (rect1.x + rect1.w - 2*circle._radius < rect2._lower_bound.x or rect1.x + 2*circle._radius > rect2._upper_bound.x or rect1.y + rect1.h - 2*circle._radius < rect2._lower_bound.y or rect1.y + 2*circle._radius > rect2._upper_bound.y)
+                not_overlapping = rect1.x + rect1.w - 2*circle._radius - 1 < rect2._lower_bound.x or rect1.x + 2*circle._radius + 1 > rect2._upper_bound.x or rect1.y + rect1.h - 2*circle._radius - 1 < rect2._lower_bound.y or rect1.y + 2*circle._radius + 1 > rect2._upper_bound.y
                 #overlapping = not (rect1.x + rect1.w - circle._vel.x < rect2._lower_bound.x or rect1.x + circle._vel.x > rect2._upper_bound.x or rect1.y + rect1.h - circle._vel.y < rect2._lower_bound.y or rect1.y + circle._vel.y > rect2._upper_bound.y)
-                if not overlapping:
-                    #nodes_to_redraw.append(node)
-                    aabb_tree = aabb_tree.update_tree(circles)
-                    break
+                if not_overlapping:
+                    nodes_to_redraw.append(node)
+                    # aabb_tree = aabb_tree.update_tree(circles)
+                    # break
+
+                    # new_node = AABBNode(is_leaf=True, indx=node._indx, rect=circle.rect)
+                    # aabb_tree.delete_leaf_node(node)
+                    # aabb_tree.insert_node(new_node)
+                else:
+                    # always update at least the leaf bounding box but don't change its parent by walking up!!!
+                    # otherwise it will never redraw because it keeps changing the bounds
+                    node._bounding_box = AABB(Vector2(rect1.topleft), Vector2(rect1.bottomright))
         
-        # for node in nodes_to_redraw:
-        #     new_node = AABBNode(is_leaf=True, indx=node._indx, rect=circles[node._indx].rect)
-        #     aabb_tree.delete_leaf_node(node)
-        #     aabb_tree.insert_node(new_node)
+        for node in nodes_to_redraw:
+            new_node = AABBNode(is_leaf=True, indx=node._indx, rect=circles[node._indx].rect)
+            aabb_tree.delete_leaf_node(node)
+            aabb_tree.insert_node(new_node)
 
             # new_rect = circles[node._indx].rect
             # aabb_tree.update_node(node, AABB(Vector2(new_rect.topleft), Vector2(new_rect.bottomright)))
