@@ -98,8 +98,8 @@ class AABBNode(object):
             top = tmp.pop()
             if top:
                 stack.append(top)
-                tmp.append(node._right_child)
-                tmp.append(node._left_child)
+                tmp.append(top._right_child)
+                tmp.append(top._left_child)
 
         while stack:
             top = stack.pop()
@@ -109,8 +109,8 @@ class AABBNode(object):
                 curr_cost = aabb._cost
                 if curr_cost < best_cost:
                     best_aabb = aabb
-                    best_node = node
-                    best_cost = cost
+                    best_node = top
+                    best_cost = curr_cost
             else:
                 # WIP
                 curr_cost = curr_node.cost()
@@ -122,7 +122,7 @@ class AABBNode(object):
 
                 # left_cost = best_cost + AABB.union(top._left_child._bounding_box, new_node._bounding_box)
                 # right_cost = best_cost + AABB.union(top._right_child._bounding_box, new_node._bounding_box)
-        return
+        return best_node, best_cost
         
     def render(self, surface, color):
         if self._bounding_box == None:
@@ -130,10 +130,10 @@ class AABBNode(object):
         
         if self._is_leaf:
             self._bounding_box.render(surface, pygame.Color(0, 255, 0))
-            #surface.blit(cost_font.render(str(int(self._indx)), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x, self._bounding_box._lower_bound.y))
+            surface.blit(cost_font.render(str(int(self._indx)), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x, self._bounding_box._lower_bound.y))
         else:
             self._bounding_box.render(surface, color)
-            #surface.blit(cost_font.render(str(int(self.cost())), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x + 5, self._bounding_box._lower_bound.y + 5))
+            surface.blit(cost_font.render(str(int(self.cost())), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x + 5, self._bounding_box._lower_bound.y + 5))
     
 class AABBTree(object):
     _nodes: List[AABBNode]
@@ -186,7 +186,7 @@ class AABBTree(object):
             return curr_node
         
         # go down the rabbit hole  
-        best_node, _ = curr_node.find_best_cost(curr_node, new_node, 0) # curr_node.find_best_cost_itr(curr_node, new_node)
+        best_node, _ = curr_node.find_best_cost_itr(curr_node, new_node) # curr_node.find_best_cost(curr_node, new_node, 0) 
         return best_node
 
     def find_best_node_heuristic(self, curr_node: AABBNode, new_node: AABBNode) -> AABBNode:
@@ -348,13 +348,13 @@ if __name__ == "__main__":
                 if event.key == pygame.K_p:
                     paused = not paused
 
-        if paused:
-            continue
-
         # convert dt to seconds by dividing by 1000
         dt = clock.tick() / 1000
                 
         screen.fill("#000000")
+        
+        if paused:
+            continue
 
         for circle in circles:
             circle.on_tick(dt)
@@ -433,8 +433,8 @@ if __name__ == "__main__":
 
             circle.render(screen)
         
-        #aabb_tree = aabb_tree.update_tree(circles)
-        #aabb_tree.render_tree(screen, pygame.Color(255, 0, 0)) # has little to no effect on framerate
+        aabb_tree = aabb_tree.update_tree(circles)
+        aabb_tree.render_tree(screen, pygame.Color(255, 0, 0)) # has little to no effect on framerate
 
         screen.blit(update_fps(), (5, 10))
         pygame.display.flip()
