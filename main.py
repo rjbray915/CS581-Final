@@ -10,26 +10,30 @@ from wall import Wall
 
 parser = argparse.ArgumentParser()
 parser.add_argument("num_spawn", help="num circles to spawn on map", type=int)
-parser.add_argument("radius", help="radius of circles", type=int)
+parser.add_argument("min_radius", help="minimum radius of circles", type=int)
+parser.add_argument("max_radius", help="maximum radius of circles", type=int)
 parser.add_argument("spacing", help="spacing of circles", type=int)
 args = parser.parse_args()
 num_spawn = int(args.num_spawn)
-radius = int(args.radius)
+min_radius = int(args.min_radius)
+max_radius = int(args.max_radius)
 spacing = int(args.spacing)
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # flags=pygame.NOFRAME
+pygame.display.set_caption('Combinations')
 clock = pygame.time.Clock()
 running = True
+paused = False
 
 # fps counter
 font = pygame.font.SysFont("dejavusansmono", 18)
 def update_fps():
-	fps = str(int(clock.get_fps())) # averages the last 10 calls to Clock.tick()
-	fps_text = font.render(fps, 1, pygame.Color("coral"))
-	return fps_text
+    fps = str(int(clock.get_fps())) # averages the last 10 calls to Clock.tick()
+    fps_text = font.render(fps, 1, pygame.Color("coral"))
+    return fps_text
 
 def render_text(text: str):
     return font.render(text, 1, pygame.Color("coral"))
@@ -38,8 +42,8 @@ def render_text(text: str):
 # calculate number that we can spawn with the radius + spacing
 # radius = 5
 # spacing = 20
-num_width = int(SCREEN_WIDTH / (radius * 2 + spacing))
-num_height = int(SCREEN_HEIGHT / (radius * 2 + spacing))
+num_width = int(SCREEN_WIDTH / (max_radius * 2 + spacing))
+num_height = int(SCREEN_HEIGHT / (max_radius * 2 + spacing))
 if(num_spawn > num_width * num_height):
     print("too many circles, not enough room!")
     exit()
@@ -49,23 +53,23 @@ circles: List[Circle] = []
 curr_x = spacing
 curr_y = spacing
 for i in range(num_height):
-    curr_y += radius
+    curr_y += max_radius
 
     for j in range(num_width):
         if i * num_width + j >= num_spawn:
             break
 
-        curr_x += radius
+        curr_x += max_radius
         circles.append(Circle((curr_x, curr_y),
                             (random.randint(-100, 100), random.randint(-100, 100)),
                             (0, 0),# (random.randint(-20, 20), random.randint(-20, 20)),
-                            random.randint(radius, radius), # can experiment with random radius -- random.randint(1, radius)
+                            random.randint(min_radius, max_radius), # can experiment with random radius -- random.randint(1, radius)
                             random.choice(["green", "blue", "yellow", "red", "grey"])))
-        curr_x += radius + spacing
+        curr_x += max_radius + spacing
 
     # reset pos
     curr_x = spacing
-    curr_y += radius + spacing
+    curr_y += max_radius + spacing
 
 # walls
 # WALL_WIDTH = 50
@@ -77,6 +81,7 @@ for i in range(num_height):
 
 # get combinations
 circle_combos = list(itertools.combinations(range(len(circles)), 2))
+
 total_time = 0
 num_checks = 0
 total_frames = 0
@@ -85,20 +90,25 @@ avg_frames_render = None
 avg_checks_render = None
 
 while running:
-    # convert dt to seconds by dividing by 1000
-    dt = clock.tick() / 1000
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q:
                 running = False
+            if event.key == pygame.K_p:
+                paused = not paused
+
+    # convert dt to seconds by dividing by 1000
+    dt = clock.tick() / 1000
             
     screen.fill("#000000")
+    
+    if paused:
+        continue
 
-    for i in range(len(circles)):
-        circles[i].on_tick(dt)
+    for circle in circles:
+        circle.on_tick(dt)
     
         # for wall in walls:      
         #     #check if colliding
@@ -135,8 +145,7 @@ while running:
     total_time += dt
     total_frames += curr_fps
     frames_checks += 1
-    screen.blit(fps_surface, (5, 10))
-    # avg fps and checks every 30s
+    # avg fps and checks every 1s
     if total_time >= 1:
         avg_framerate = total_frames / frames_checks
         avg_checks = num_checks / frames_checks
@@ -152,8 +161,10 @@ while running:
         num_checks = 0
 
     # fps rect
-    pygame.draw.rect(screen, "black", pygame.rect.Rect(0, 0, 250, 90))
-    fps_text = "{:<12}{:10d}".format("Curr FPS:", int(curr_fps))
+    s = pygame.Surface((250, 80), pygame.SRCALPHA)
+    s.fill((0, 0, 0, 128))
+    screen.blit(s, (0, 0))
+    fps_text = "{:<12}{:10d}".format("Cur FPS:", int(curr_fps))
     screen.blit(render_text(fps_text), (5, 10))
     if avg_frames_render:
         screen.blit(avg_frames_render, (5, 30))
