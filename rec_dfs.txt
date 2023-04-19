@@ -1,0 +1,8 @@
+pygame 2.3.0 (SDL 2.24.2, Python 3.10.6)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+curr_node: -1 curr_cost: 40500.0
+curr_node: -1 curr_cost: 40500.0
+curr_node: -1 curr_cost: 123500.0
+curr_node: -1 curr_cost: 76500.0
+curr_node: -1 curr_cost: 40500.0
+curr_node: -1 curr_cost: 229000.0

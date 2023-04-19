@@ -31,6 +31,9 @@ def update_fps():
 	fps_text = font.render(fps, 1, pygame.Color("coral"))
 	return fps_text
 
+def render_text(text: str):
+    return font.render(text, 1, pygame.Color("coral"))
+
 # circle spawning
 # calculate number that we can spawn with the radius + spacing
 # radius = 5
@@ -74,6 +77,12 @@ for i in range(num_height):
 
 # get combinations
 circle_combos = list(itertools.combinations(range(len(circles)), 2))
+total_time = 0
+num_checks = 0
+total_frames = 0
+frames_checks = 0
+avg_frames_render = None
+avg_checks_render = None
 
 while running:
     # convert dt to seconds by dividing by 1000
@@ -101,6 +110,7 @@ while running:
         # check if bounding box is colliding
         # if pygame.sprite.collide_rect(circles[combo[0]], circles[combo[1]]):
             # precise calculation for circles
+        num_checks += 1
         if circles[combo[0]].is_colliding_circle(circles[combo[1]]):
             circles[combo[0]].reflect_obj(circles[combo[1]], dt)
     
@@ -120,7 +130,35 @@ while running:
 
         circle.render(screen)
 
-    screen.blit(update_fps(), (5, 10))
+    curr_fps = clock.get_fps()
+    fps_surface = update_fps()
+    total_time += dt
+    total_frames += curr_fps
+    frames_checks += 1
+    screen.blit(fps_surface, (5, 10))
+    # avg fps and checks every 30s
+    if total_time >= 1:
+        avg_framerate = total_frames / frames_checks
+        avg_checks = num_checks / frames_checks
+        
+        avg_check_str = "{:<12}{:10.1f}".format("Avg Checks:", avg_checks)
+        avg_frames_str = "{:<12}{:10.1f}".format("Avg FPS:", avg_framerate)
+        avg_checks_render = render_text(avg_check_str)
+        avg_frames_render = render_text(avg_frames_str)
+
+        total_time = 0
+        total_frames = 0
+        frames_checks = 0
+        num_checks = 0
+
+    # fps rect
+    pygame.draw.rect(screen, "black", pygame.rect.Rect(0, 0, 250, 90))
+    fps_text = "{:<12}{:10d}".format("Curr FPS:", int(curr_fps))
+    screen.blit(render_text(fps_text), (5, 10))
+    if avg_frames_render:
+        screen.blit(avg_frames_render, (5, 30))
+    if avg_checks_render:
+        screen.blit(avg_checks_render, (5, 50))
     pygame.display.flip()
     
 pygame.quit()

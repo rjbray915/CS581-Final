@@ -18,7 +18,7 @@ class AABB(object):
         self._cost = width * height #2 * width + 2 * height
         
     def union(a1: 'AABB', a2: 'AABB') -> 'AABB':
-        padding: int = 25 # seems to do worse with less padding or more padding -- 25 is just right?
+        padding: int = 0 # seems to do worse with less padding or more padding -- 25 is just right?
         lower = Vector2(0, 0)
         upper = Vector2(0, 0)
         lower.x = min(a1._lower_bound.x, a2._lower_bound.x) - padding
@@ -445,6 +445,9 @@ if __name__ == "__main__":
         fps = str(int(clock.get_fps())) # averages the last 10 calls to Clock.tick()
         fps_text = font.render(fps, 1, pygame.Color("coral"))
         return fps_text
+    
+    def render_text(text: str):
+        return font.render(text, 1, pygame.Color("coral"))
 
     cost_font = pygame.font.SysFont("dejavusansmono", 12)
 
@@ -485,6 +488,13 @@ if __name__ == "__main__":
         curr_x = spacing
         curr_y += radius + spacing
         
+    total_time = 0
+    num_checks = 0
+    total_frames = 0
+    frames_checks = 0
+    avg_frames_render = None
+    avg_checks_render = None
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -540,7 +550,6 @@ if __name__ == "__main__":
         # determine which AABBs can collide
         #circle_combos = []
         for i, circle in enumerate(circles):
-            num_checks = 0
             stack = [aabb_tree._root]
             rect1 = circle.rect
             while len(stack) > 0:
@@ -591,7 +600,34 @@ if __name__ == "__main__":
         # for node in aabb_tree._nodes:
         #     print(node._indx)
 
-        screen.blit(update_fps(), (5, 10))
+        curr_fps = clock.get_fps()
+        fps_surface = update_fps()
+        total_time += dt
+        total_frames += curr_fps
+        frames_checks += 1
+        # avg fps and checks every 30s
+        if total_time >= 1:
+            avg_framerate = total_frames / frames_checks
+            avg_checks = num_checks / frames_checks
+            
+            avg_check_str = "{:<12}{:10.1f}".format("Avg Checks:", avg_checks)
+            avg_frames_str = "{:<12}{:10.1f}".format("Avg FPS:", avg_framerate)
+            avg_checks_render = render_text(avg_check_str)
+            avg_frames_render = render_text(avg_frames_str)
+
+            total_time = 0
+            total_frames = 0
+            frames_checks = 0
+            num_checks = 0
+
+        # fps rect
+        pygame.draw.rect(screen, "black", Rect(0, 0, 250, 90))
+        fps_text = "{:<12}{:10d}".format("Curr FPS:", int(curr_fps))
+        screen.blit(render_text(fps_text), (5, 10))
+        if avg_frames_render:
+            screen.blit(avg_frames_render, (5, 30))
+        if avg_checks_render:
+            screen.blit(avg_checks_render, (5, 50))
         pygame.display.flip()
         
     pygame.quit()
