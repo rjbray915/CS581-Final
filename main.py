@@ -161,7 +161,7 @@ while running:
         num_checks = 0
 
     # fps rect
-    s = pygame.Surface((250, 80), pygame.SRCALPHA)
+    s = pygame.Surface((250, 70), pygame.SRCALPHA)
     s.fill((0, 0, 0, 128))
     screen.blit(s, (0, 0))
     fps_text = "{:<12}{:10d}".format("Cur FPS:", int(curr_fps))

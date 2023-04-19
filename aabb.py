@@ -17,7 +17,7 @@ class AABB(object):
         height = self._upper_bound.y - self._lower_bound.y
         self._cost = width * height #2 * width + 2 * height
         
-    def union(a1: 'AABB', a2: 'AABB', padding: int = 10, vel: Vector2 = None) -> 'AABB':
+    def union(a1: 'AABB', a2: 'AABB', padding: int = 0) -> 'AABB':
         #padding: int = 10 # seems to do worse with less padding or more padding -- 25 is just right?
         # if vel:
         #     lower = Vector2(0, 0)
@@ -202,7 +202,7 @@ class AABBTree(object):
             self._nodes.append(internal_node)
             self._nodes.append(new_node)
 
-            internal_node._bounding_box = AABB.union(internal_node._left_child._bounding_box, internal_node._right_child._bounding_box)
+            internal_node._bounding_box = AABB.union(internal_node._left_child._bounding_box, internal_node._right_child._bounding_box, 10)
         else:
             new_aabb = new_node._bounding_box
             branch_merge = AABB.union(curr_node._bounding_box, new_aabb)
@@ -249,7 +249,7 @@ class AABBTree(object):
                 self._nodes.append(internal_node)
                 self._nodes.append(new_node)
 
-                internal_node._bounding_box = AABB.union(internal_node._left_child._bounding_box, internal_node._right_child._bounding_box)
+                internal_node._bounding_box = AABB.union(internal_node._left_child._bounding_box, internal_node._right_child._bounding_box, 0)
             elif left_cost < right_cost:
                 self.insert_node_recursive(curr_node._left_child, new_node)
             else:
@@ -509,8 +509,10 @@ if __name__ == "__main__":
     num_checks = 0
     total_frames = 0
     frames_checks = 0
+    reinsertions = 0
     avg_frames_render = None
     avg_checks_render = None
+    avg_reinserts_render = None
 
     while running:
         for event in pygame.event.get():
@@ -565,7 +567,6 @@ if __name__ == "__main__":
             # aabb_tree.update_node(node, AABB(Vector2(new_rect.topleft), Vector2(new_rect.bottomright)))
 
         # determine which AABBs can collide
-        #circle_combos = []
         for i, circle in enumerate(circles):
             stack = [aabb_tree._root]
             rect1 = circle.rect
@@ -589,10 +590,6 @@ if __name__ == "__main__":
                         stack.append(top._right_child)
 
             #print(num_checks)
-
-        # for combo in circle_combos:
-        #     if combo[0].is_colliding_circle(combo[1]):
-        #         combo[0].reflect_obj(combo[1], dt)
         
         for circle in circles:
             if circle._pos.x - circle._radius < 0:
@@ -622,23 +619,28 @@ if __name__ == "__main__":
         total_time += dt
         total_frames += curr_fps
         frames_checks += 1
+        reinsertions += len(nodes_to_redraw)
         # avg fps and checks every 1s
         if total_time >= 1:
             avg_framerate = total_frames / frames_checks
             avg_checks = num_checks / frames_checks
+            reinsertions /= frames_checks
             
             avg_check_str = "{:<12}{:10.1f}".format("Avg Checks:", avg_checks)
             avg_frames_str = "{:<12}{:10.1f}".format("Avg FPS:", avg_framerate)
+            avg_reinserts_str = "{:<12}{:9.1f}".format("Reinsertions:", reinsertions)
             avg_checks_render = render_text(avg_check_str)
             avg_frames_render = render_text(avg_frames_str)
+            avg_reinserts_render = render_text(avg_reinserts_str)
 
             total_time = 0
             total_frames = 0
             frames_checks = 0
             num_checks = 0
+            reinsertions = 0
 
         # fps rect
-        s = pygame.Surface((250, 80), pygame.SRCALPHA)
+        s = pygame.Surface((250, 90), pygame.SRCALPHA)
         s.fill((0, 0, 0, 128))
         screen.blit(s, (0, 0))
         fps_text = "{:<12}{:10d}".format("Cur FPS:", int(curr_fps))
@@ -647,6 +649,8 @@ if __name__ == "__main__":
             screen.blit(avg_frames_render, (5, 30))
         if avg_checks_render:
             screen.blit(avg_checks_render, (5, 50))
+        if avg_reinserts_render:
+            screen.blit(avg_reinserts_render, (5, 70))
         pygame.display.flip()
         
     pygame.quit()
