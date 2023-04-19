@@ -2,6 +2,9 @@ from typing import List
 import sys
 from pygame.math import Vector2
 from pygame.rect import Rect
+from collections import deque
+
+global_screen = None
 
 class AABB(object):
     _lower_bound: Vector2
@@ -29,6 +32,32 @@ class AABB(object):
                           self._upper_bound.x - self._lower_bound.x,
                           self._upper_bound.y - self._lower_bound.y)
         pygame.draw.rect(surface, color, rect, 1)
+
+    # inspiration from https://github.com/kip-hart/AABBTree/blob/master/aabbtree.py#L215
+    def overlap_volume(self, aabb):
+        volume = 1
+
+        min1, max1 = self._lower_bound.x, self._upper_bound.x
+        min2, max2 = aabb._lower_bound.x, aabb._upper_bound.x
+
+        overlap_min = max(min1, min2)
+        overlap_max = min(max1, max2)
+        if overlap_min >= overlap_max:
+            return 0
+
+        volume *= overlap_max - overlap_min
+
+        min1, max1 = self._lower_bound.y, self._upper_bound.y
+        min2, max2 = aabb._lower_bound.y, aabb._upper_bound.y
+
+        overlap_min = max(min1, min2)
+        overlap_max = min(max1, max2)
+        if overlap_min >= overlap_max:
+            return 0
+
+        volume *= overlap_max - overlap_min
+
+        return volume
         
 class AABBNode(object):
     _is_leaf: bool
@@ -37,6 +66,7 @@ class AABBNode(object):
     _right_child: 'AABBNode'
     _parent: 'AABBNode'
     _indx: int
+    _cost: int
     
     def __init__(self, is_leaf: bool, indx: int, rect: Rect = None, aabb: AABB = None):
         self._is_leaf = is_leaf
@@ -50,10 +80,12 @@ class AABBNode(object):
         self._left_child = None
         self._right_child = None
         self._parent = None
+        self._cost = 0
         
     def cost(self):
         '''recursive helper for cost function'''
-        return self.cost_recursive(self)
+        self._cost = self.cost_recursive(self)
+        return self._cost
 
     def cost_recursive(self, curr_node: 'AABBNode'):
         '''recursive cost function based on bounding box costs'''
@@ -85,44 +117,25 @@ class AABBNode(object):
         else:
             return (left_node, left_cost + new_cost) if left_cost < right_cost else (right_node, right_cost + new_cost)
 
-    def find_best_cost_itr(self, curr_node: 'AABBNode', new_node: 'AABBNode'):
-        '''iterative cost function based on bounding box costs'''
-        tmp = [curr_node]
-        stack = []
-        best_aabb = None
-        best_node = None
-        best_cost = sys.maxsize
+    def trickle_up_cost(self, new_node: 'AABBNode'):
+        '''iterative cost function based on all changed bounding box costs'''
+        curr_node = self
+        curr_aabb = AABB.union(curr_node._bounding_box, new_node._bounding_box)
+        cost = curr_aabb._cost
+        recursive_cost = self._cost
 
-        # create recursive stack with level order traversal
-        while tmp:
-            top = tmp.pop()
-            if top:
-                stack.append(top)
-                tmp.append(top._right_child)
-                tmp.append(top._left_child)
-
-        while stack:
-            top = stack.pop()
-
-            if top._is_leaf:
-                aabb = AABB.union(top._bounding_box, new_node._bounding_box)
-                curr_cost = aabb._cost
-                if curr_cost < best_cost:
-                    best_aabb = aabb
-                    best_node = top
-                    best_cost = curr_cost
+        while curr_node._parent:
+            # consider the cost of replacing the sibling with the new node
+            if curr_node._parent._left_child == curr_node:
+                curr_aabb = AABB.union(curr_aabb, curr_node._parent._right_child._bounding_box)
             else:
-                # WIP
-                curr_cost = curr_node.cost()
+                curr_aabb = AABB.union(curr_aabb, curr_node._parent._left_child._bounding_box)
+            cost += curr_aabb._cost
+            curr_node = curr_node._parent
 
-                if curr_cost < best_cost:
-                    best_aabb = AABB.union(top._bounding_box, new_node._bounding_box)
-                    best_node = top
-                    best_cost += curr_cost
+        #global_screen.blit(cost_font.render(str(int(cost)), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x + 5, self._bounding_box._lower_bound.y + 5))
 
-                # left_cost = best_cost + AABB.union(top._left_child._bounding_box, new_node._bounding_box)
-                # right_cost = best_cost + AABB.union(top._right_child._bounding_box, new_node._bounding_box)
-        return best_node, best_cost
+        return cost + recursive_cost
         
     def render(self, surface, color):
         if self._bounding_box == None:
@@ -130,10 +143,10 @@ class AABBNode(object):
         
         if self._is_leaf:
             self._bounding_box.render(surface, pygame.Color(0, 255, 0))
-            surface.blit(cost_font.render(str(int(self._indx)), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x, self._bounding_box._lower_bound.y))
+            #surface.blit(cost_font.render(str(int(self._indx)), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x, self._bounding_box._lower_bound.y))
         else:
             self._bounding_box.render(surface, color)
-            surface.blit(cost_font.render(str(int(self.cost())), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x + 5, self._bounding_box._lower_bound.y + 5))
+            #surface.blit(cost_font.render(str(int(self.cost())), 1, pygame.Color("coral")), (self._bounding_box._lower_bound.x + 5, self._bounding_box._lower_bound.y + 5))
     
 class AABBTree(object):
     _nodes: List[AABBNode]
@@ -142,16 +155,103 @@ class AABBTree(object):
     def __init__(self):
         self._nodes = []
         self._root = None
-        
-    def insert_node(self, new_node: AABBNode):
-        self._nodes.append(new_node)
 
-        if self._root == None:
+    def insert_from_root(self, new_node: AABBNode):
+        self.insert_node_recursive(self._root, new_node)
+
+    # inspiration from https://github.com/kip-hart/AABBTree/blob/master/aabbtree.py#L340
+    def insert_node_recursive(self, curr_node: AABBNode, new_node: AABBNode):
+        if self._root is None:
             self._root = new_node
+            self._nodes.append(new_node)
+            return
+        
+        if curr_node._is_leaf:
+            # base case
+            internal_node = AABBNode(False, -1)
+            parent = curr_node._parent
+            internal_node._parent = parent
+            # this is not the root node
+            if parent is not None:
+                if parent._left_child == curr_node:
+                    parent._left_child = internal_node
+                else:
+                    parent._right_child = internal_node
+            else:
+                self._root = internal_node
+
+            # set children correctly and append
+            internal_node._left_child = curr_node
+            internal_node._right_child = new_node
+            curr_node._parent = internal_node
+            new_node._parent = internal_node
+            self._nodes.append(internal_node)
+            self._nodes.append(new_node)
+
+            internal_node._bounding_box = AABB.union(internal_node._left_child._bounding_box, internal_node._right_child._bounding_box)
+        else:
+            new_aabb = new_node._bounding_box
+            branch_merge = AABB.union(curr_node._bounding_box, new_aabb)
+            left_merge = AABB.union(curr_node._left_child._bounding_box, new_aabb)
+            right_merge = AABB.union(curr_node._right_child._bounding_box, new_aabb)
+
+            # Calculate the change in the sum of the bounding volumes
+            branch_cost = branch_merge._cost
+
+            left_cost = branch_merge._cost - curr_node._bounding_box._cost
+            left_cost += left_merge._cost - curr_node._left_child._bounding_box._cost
+
+            right_cost = branch_merge._cost - curr_node._bounding_box._cost
+            right_cost += right_merge._cost - curr_node._right_child._bounding_box._cost
+
+            # Calculate amount of overlap
+            branch_olap_cost = curr_node._bounding_box.overlap_volume(new_aabb)
+            left_olap_cost = left_merge.overlap_volume(curr_node._right_child._bounding_box)
+            right_olap_cost = right_merge.overlap_volume(curr_node._left_child._bounding_box)
+
+            # Calculate total cost
+            branch_cost += branch_olap_cost
+            left_cost += left_olap_cost
+            right_cost += right_olap_cost
+
+            if branch_cost < left_cost and branch_cost < right_cost:
+                internal_node = AABBNode(False, -1)
+                parent = curr_node._parent
+                internal_node._parent = parent
+                # this is not the root node
+                if parent is not None:
+                    if parent._left_child == curr_node:
+                        parent._left_child = internal_node
+                    else:
+                        parent._right_child = internal_node
+                else:
+                    self._root = internal_node
+
+                # set children correctly and append
+                internal_node._left_child = curr_node
+                internal_node._right_child = new_node
+                curr_node._parent = internal_node
+                new_node._parent = internal_node
+                self._nodes.append(internal_node)
+                self._nodes.append(new_node)
+
+                internal_node._bounding_box = AABB.union(internal_node._left_child._bounding_box, internal_node._right_child._bounding_box)
+            elif left_cost < right_cost:
+                self.insert_node_recursive(curr_node._left_child, new_node)
+            else:
+                self.insert_node_recursive(curr_node._right_child, new_node)
+
+            # walks back up the tree for us?
+            curr_node._bounding_box = AABB.union(curr_node._left_child._bounding_box, curr_node._right_child._bounding_box)
+                    
+    def insert_node(self, new_node: AABBNode):
+        if self._root is None:
+            self._root = new_node
+            self._nodes.append(new_node)
             return
     
         # otherwise, make a new internal node and put this on right
-        best_node: AABBNode = self.find_best_node(self._root, new_node) # self.find_best_node_heuristic(self._root, new_node)
+        best_node: AABBNode = self.find_best_node(self._root, new_node) # self.find_best_node_itr(new_node) # self.find_best_node(self._root, new_node) # self.find_best_node_heuristic(self._root, new_node)
         # internal_node_bb = AABB.union(new_node._bounding_box, best_node._bounding_box)
         internal_node = AABBNode(False, -1)
         old_node = best_node._parent
@@ -172,6 +272,8 @@ class AABBTree(object):
         best_node._parent = internal_node
         new_node._parent = internal_node
         self._nodes.append(internal_node)
+        self._nodes.append(new_node)
+        # Help given by Andrew Mueller, The OG Man, and my loving husband. :)
         
         # walk back up the tree to refit all the AABBs
         curr_node = internal_node
@@ -186,7 +288,23 @@ class AABBTree(object):
             return curr_node
         
         # go down the rabbit hole  
-        best_node, _ = curr_node.find_best_cost_itr(curr_node, new_node) # curr_node.find_best_cost(curr_node, new_node, 0) 
+        best_node, _ = curr_node.find_best_cost(curr_node, new_node, 0) 
+        return best_node
+
+    def find_best_node_itr(self, new_node: AABBNode) -> AABBNode:        
+        # trickle up stuff -- O(n log n), at most log n for each leaf (n/2 nodes)
+        best_node = None
+        best_cost = sys.maxsize
+
+        for node in self._nodes:
+           node.cost()
+        
+        for node in self._nodes:
+            curr_cost = node.trickle_up_cost(new_node)
+            if curr_cost < best_cost:
+                best_node = node
+                best_cost = curr_cost
+
         return best_node
 
     def find_best_node_heuristic(self, curr_node: AABBNode, new_node: AABBNode) -> AABBNode:
@@ -210,7 +328,7 @@ class AABBTree(object):
         new_tree = AABBTree()
         for i, circle in enumerate(circles):
             new_node = AABBNode(is_leaf=True, indx=i, rect=circle.rect)
-            new_tree.insert_node(new_node)
+            new_tree.insert_from_root(new_node)
 
         return new_tree
 
@@ -263,6 +381,34 @@ class AABBTree(object):
         while curr_node is not None:
             curr_node._bounding_box = AABB.union(curr_node._left_child._bounding_box, curr_node._right_child._bounding_box)
             curr_node = curr_node._parent
+
+    # Thanks ChatGPT :-)
+    # format printed for use with https://www.leetcode-tree-visualizer.com/
+    def print_levels(self):
+        if not self._root:
+            return ''
+
+        queue = [self._root]
+        output = []
+        all_none = False
+        
+        while queue and not all_none:
+            level_nodes = []
+            all_none = True
+            for _ in range(len(queue)):
+                node = queue.pop(0)
+                if node:
+                    level_nodes.append(str(node._indx))
+                    queue.append(node._left_child)
+                    queue.append(node._right_child)
+                    all_none = False
+                else:
+                    level_nodes.append('')
+                    queue.extend([None, None])
+            
+            output.append(','.join(level_nodes))
+        
+        print(','.join(output))
         
 if __name__ == "__main__":
     import pygame
@@ -288,6 +434,7 @@ if __name__ == "__main__":
     SCREEN_HEIGHT = 720
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # flags=pygame.NOFRAME
+    global_screen = screen
     clock = pygame.time.Clock()
     running = True
     paused = False
@@ -331,7 +478,7 @@ if __name__ == "__main__":
                                 random.choice(["green", "blue", "yellow", "red", "grey"]))
             new_node = AABBNode(is_leaf=True, indx=len(circles), rect=curr_circle.rect)
             circles.append(curr_circle)
-            aabb_tree.insert_node(new_node)
+            aabb_tree.insert_from_root(new_node)
             curr_x += radius + spacing
 
         # reset pos
@@ -385,7 +532,7 @@ if __name__ == "__main__":
         for node in nodes_to_redraw:
             new_node = AABBNode(is_leaf=True, indx=node._indx, rect=circles[node._indx].rect)
             aabb_tree.delete_leaf_node(node)
-            aabb_tree.insert_node(new_node)
+            aabb_tree.insert_from_root(new_node)
 
             # new_rect = circles[node._indx].rect
             # aabb_tree.update_node(node, AABB(Vector2(new_rect.topleft), Vector2(new_rect.bottomright)))
@@ -393,10 +540,12 @@ if __name__ == "__main__":
         # determine which AABBs can collide
         #circle_combos = []
         for i, circle in enumerate(circles):
+            num_checks = 0
             stack = [aabb_tree._root]
             rect1 = circle.rect
             while len(stack) > 0:
                 top = stack.pop()
+                num_checks += 1
                 if top._is_leaf:
                     # handle collision
                     if top._indx != i and circle.is_colliding_circle(circles[top._indx]):
@@ -412,6 +561,8 @@ if __name__ == "__main__":
                     overlapping = not (rect1.x + rect1.w < rect2._lower_bound.x or rect1.x > rect2._upper_bound.x or rect1.y + rect1.h < rect2._lower_bound.y or rect1.y > rect2._upper_bound.y)
                     if overlapping:
                         stack.append(top._right_child)
+
+            #print(num_checks)
 
         # for combo in circle_combos:
         #     if combo[0].is_colliding_circle(combo[1]):
@@ -433,8 +584,12 @@ if __name__ == "__main__":
 
             circle.render(screen)
         
-        aabb_tree = aabb_tree.update_tree(circles)
+        #aabb_tree = aabb_tree.update_tree(circles)
         aabb_tree.render_tree(screen, pygame.Color(255, 0, 0)) # has little to no effect on framerate
+        #aabb_tree.print_levels()
+
+        # for node in aabb_tree._nodes:
+        #     print(node._indx)
 
         screen.blit(update_fps(), (5, 10))
         pygame.display.flip()
