@@ -1,3 +1,4 @@
+import pygame
 from typing import List
 import sys
 from pygame.math import Vector2
@@ -425,7 +426,6 @@ class AABBTree(object):
         print(','.join(output))
         
 if __name__ == "__main__":
-    import pygame
     import os
     from typing import List
     import random
@@ -450,7 +450,7 @@ if __name__ == "__main__":
     SCREEN_HEIGHT = 720
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # flags=pygame.NOFRAME
-    pygame.display.set_caption('AABB Tree')
+    pygame.display.set_caption('AABB Tree Debug')
     global_screen = screen
     clock = pygame.time.Clock()
     running = True
@@ -470,8 +470,6 @@ if __name__ == "__main__":
 
     # circle spawning
     # calculate number that we can spawn with the radius + spacing
-    # radius = 5
-    # spacing = 20
     num_width = int(SCREEN_WIDTH / (max_radius * 2 + spacing))
     num_height = int(SCREEN_HEIGHT / (max_radius * 2 + spacing))
     if(num_spawn > num_width * num_height):
