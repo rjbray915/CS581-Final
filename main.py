@@ -28,6 +28,13 @@ clock = pygame.time.Clock()
 running = True
 paused = False
 
+# timing code
+sum_dt = 0
+first_thirty = True
+
+# random seed
+random.seed(581)
+
 # fps counter
 font = pygame.font.SysFont("dejavusansmono", 18)
 def update_fps():
@@ -140,13 +147,14 @@ while running:
 
         circle.render(screen)
 
+    time_diff = 30
     curr_fps = clock.get_fps()
     fps_surface = update_fps()
     total_time += dt
     total_frames += curr_fps
     frames_checks += 1
     # avg fps and checks every 1s
-    if total_time >= 1:
+    if total_time >= time_diff:
         avg_framerate = total_frames / frames_checks
         avg_checks = num_checks / frames_checks
         
@@ -159,6 +167,13 @@ while running:
         total_frames = 0
         frames_checks = 0
         num_checks = 0
+
+        if first_thirty:
+                first_thirty = False
+                print("reached1", sum_dt)
+        else:
+            paused = True
+            print("reached2", sum_dt)
 
     # fps rect
     s = pygame.Surface((250, 70), pygame.SRCALPHA)

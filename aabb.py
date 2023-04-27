@@ -456,6 +456,13 @@ if __name__ == "__main__":
     running = True
     paused = False
 
+    # timing code
+    sum_dt = 0
+    first_thirty = True
+
+    # random seed
+    random.seed(581)
+
     # fps counter
     font = pygame.font.SysFont("dejavusansmono", 18)
     def update_fps():
@@ -614,6 +621,8 @@ if __name__ == "__main__":
         # for node in aabb_tree._nodes:
         #     print(node._indx)
 
+        
+        time_diff = 30
         curr_fps = clock.get_fps()
         fps_surface = update_fps()
         total_time += dt
@@ -621,7 +630,7 @@ if __name__ == "__main__":
         frames_checks += 1
         reinsertions += len(nodes_to_redraw)
         # avg fps and checks every 1s
-        if total_time >= 1:
+        if total_time >= time_diff:
             avg_framerate = total_frames / frames_checks
             avg_checks = num_checks / frames_checks
             reinsertions /= frames_checks
@@ -638,6 +647,29 @@ if __name__ == "__main__":
             frames_checks = 0
             num_checks = 0
             reinsertions = 0
+
+            if first_thirty:
+                first_thirty = False
+                print("reached1", sum_dt)
+            else:
+                paused = True
+                print("reached2", sum_dt)
+
+            # '''
+            # TEST CODE
+            # '''
+            # sum_dt += dt
+            # if sum_dt >= time_diff and first_thirty:
+            #     first_thirty = False
+            #     sum_dt = 0
+            #     print("reached1", sum_dt)
+            # elif not first_thirty:
+            #     print("reached2", sum_dt)
+            #     if sum_dt < time_diff:
+            #         sum_dt += dt
+            #     else:
+            #         print("reached3" , sum_dt)
+            #         paused = True
 
         # fps rect
         s = pygame.Surface((250, 90), pygame.SRCALPHA)
