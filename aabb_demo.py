@@ -25,7 +25,7 @@ SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # flags=pygame.NOFRAME
-pygame.display.set_caption('AABB Tree w/ Optimized Bounding Boxes')
+pygame.display.set_caption('AABB Tree Optimized')
 global_screen = screen
 clock = pygame.time.Clock()
 running = True
@@ -150,6 +150,8 @@ while running:
                 overlapping = not (rect1.x + rect1.w < rect2._lower_bound.x or rect1.x > rect2._upper_bound.x or rect1.y + rect1.h < rect2._lower_bound.y or rect1.y > rect2._upper_bound.y)
                 if overlapping:
                     stack.append(top._right_child)
+
+        #print(num_checks)
     
     for circle in circles:
         if circle._pos.x - circle._radius < 0:
@@ -168,7 +170,7 @@ while running:
         circle.render(screen)
     
     #aabb_tree = aabb_tree.update_tree(circles)
-    aabb_tree.render_tree(screen, pygame.Color(255, 0, 0)) # has little to no effect on framerate
+    #aabb_tree.render_tree(screen, pygame.Color(255, 0, 0)) # has little to no effect on framerate
     #aabb_tree.print_levels()
 
     curr_fps = clock.get_fps()
